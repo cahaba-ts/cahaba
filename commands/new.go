@@ -62,6 +62,7 @@ func New(c *cli.Context) error {
 const ConfigBody = `Title = "%s"
 Cover = "cover.png"
 Description = "%s"
+ImageFolder = "images"
 Sections = [
     %s
 ]`
