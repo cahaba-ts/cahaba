@@ -9,12 +9,18 @@ import (
 	"github.com/urfave/cli"
 )
 
-const version = `2022.0`
+const version = `2022.1`
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "cahaba"
 	app.Description = "Generate or Build Volumes (Light Novels)"
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Show debug output",
+		},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:  "version",

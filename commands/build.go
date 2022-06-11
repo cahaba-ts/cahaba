@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/frontmatter"
@@ -16,36 +15,61 @@ import (
 )
 
 type BuildConfig struct {
-	Title       string   `toml:"Title" yaml:"title"`
-	Author      string   `toml:"Author" yaml:"author"`
-	Cover       string   `toml:"Cover" yaml:"cover"`
-	Description string   `toml:"Description" yaml:"description"`
-	ImageFolder string   `toml:"ImageFolder" yaml:"image_folder"`
-	Sections    []string `toml:"Sections" yaml:"sections"`
+	Title         string   `toml:"Title" yaml:"title"`
+	Author        string   `toml:"Author" yaml:"author"`
+	Cover         string   `toml:"Cover" yaml:"cover"`
+	Description   string   `toml:"Description" yaml:"description"`
+	ReleaseDate   string   `toml:"ReleaseDate" yaml:"release_date"`
+	ImageFolder   string   `toml:"ImageFolder" yaml:"image_folder"`
+	LNImageFolder string   `toml:"LNImageFolder" yaml:"ln_image_folder"`
+	Sections      []string `toml:"Sections" yaml:"sections"`
 }
 
 var onlyLN = false
 
 func Build(c *cli.Context) error {
+	if c.Bool("debug") {
+		epub.Debug = true
+	}
 	args := c.Args()
 	vpath, _ := os.Getwd()
 	if len(args) == 0 {
-		fmt.Println("Building Volume in Current Directory")
+		if epub.Debug {
+			fmt.Println("Building Volume in Current Directory")
+		}
 	} else {
 		folder := strings.Join(args, " ")
 		os.Mkdir(folder, os.ModeDir|os.ModePerm)
-		fmt.Printf("Building Volume in '%s'\n", folder)
+		if epub.Debug {
+			fmt.Printf("Building Volume in '%s'\n", folder)
+		}
 		vpath = filepath.Join(vpath, folder)
 	}
 
 	configureShortcodes()
 
+	if epub.Debug {
+		fmt.Println("Loading book config")
+	}
 	config := loadConfig(vpath)
+	if epub.Debug {
+		fmt.Println("Generating epub")
+	}
 	err := buildBookEpub(vpath, config)
 	if err != nil {
 		return err
 	}
+	if config.LNImageFolder == "" {
+		if epub.Debug {
+			fmt.Println("No LN Image Folder, skipping LN Image only output")
+		}
+		return nil
+	}
+	if epub.Debug {
+		fmt.Println("Swapping to LN Image Only book")
+	}
 	config.Title += " (LN Images Only)"
+	config.ImageFolder = config.LNImageFolder
 	onlyLN = true
 
 	return buildBookEpub(vpath, config)
@@ -58,11 +82,20 @@ func buildBookEpub(vpath string, config BuildConfig) error {
 		cfg, body := loadChapter(vpath, section)
 		if strings.HasPrefix(section, "chapter") {
 			pastPrologue = true
-			output.AddChapterMD(cfg.Title, body)
+			err := output.AddChapterMD(cfg.Title, body)
+			if err != nil {
+				log.Fatal("Add Chapter: ", err)
+			}
 		} else if pastPrologue {
-			output.AddPostscriptMD(cfg.Title, body)
+			err := output.AddPostscriptMD(cfg.Title, body)
+			if err != nil {
+				log.Fatal("Add Chapter: ", err)
+			}
 		} else {
-			output.AddIntroductionMD(cfg.Title, body)
+			err := output.AddIntroductionMD(cfg.Title, body)
+			if err != nil {
+				log.Fatal("Add Chapter: ", err)
+			}
 		}
 	}
 	return output.Write(config.Title + ".epub")
@@ -99,8 +132,11 @@ func configureEpub(vpath string, config BuildConfig) *epub.Book {
 	}
 	book.SetDescription(config.Description)
 	book.AddImageFolder(filepath.Join(vpath, config.ImageFolder))
-	book.SetCover(config.Cover)
-	book.SetReleaseDate(time.Now().Format("2006-01-02"))
+	if err := book.SetCover(filepath.Join(vpath, config.Cover)); err != nil {
+		log.Fatal("Set Cover: ", err)
+	}
+
+	book.SetReleaseDate(config.ReleaseDate)
 	book.SetPublisher("Cahaba Translations")
 	if _, err := os.Stat("main.css"); err == nil {
 		book.SetCSS("main.css")
@@ -119,7 +155,7 @@ func configureShortcodes() {
 			alt := fmt.Sprint(m["alt"])
 			imgPath, ok := b.LookupImage(img)
 			if !ok {
-				return "", errors.New("Missing Image")
+				return "", errors.New("Missing Image: " + img)
 			}
 			return fmt.Sprintf(
 				`<img class="cahaba--normal-image" src="%s" alt="%s" />`,
@@ -138,7 +174,7 @@ func configureShortcodes() {
 			alt := fmt.Sprint(m["alt"])
 			imgPath, ok := b.LookupImage(img)
 			if !ok {
-				return "", errors.New("Missing Image")
+				return "", errors.New("Missing Image: " + img)
 			}
 			return fmt.Sprintf(
 				`<img class="cahaba--narrow-image" src="%s" alt="%s" />`,
@@ -154,7 +190,7 @@ func configureShortcodes() {
 			alt := fmt.Sprint(m["alt"])
 			imgPath, ok := b.LookupImage(img)
 			if !ok {
-				return "", errors.New("Missing Image")
+				return "", errors.New("Missing Image: " + img)
 			}
 			return fmt.Sprintf(
 				`<!-- PAGE BREAK --><img class="cahaba--page-image" src="%s" alt="%s" /><!-- PAGE BREAK -->`,
@@ -173,7 +209,7 @@ func configureShortcodes() {
 			alt := fmt.Sprint(m["alt"])
 			imgPath, ok := b.LookupImage(img)
 			if !ok {
-				return "", errors.New("Missing Image")
+				return "", errors.New("Missing Image: " + img)
 			}
 			return fmt.Sprintf(
 				`<img class="cahaba--normal-image" src="%s" alt="%s" />`,
