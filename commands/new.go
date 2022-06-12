@@ -41,6 +41,7 @@ func New(c *cli.Context) error {
 	}
 	os.Mkdir(tpath, os.ModeDir|os.ModePerm)
 	os.Mkdir(filepath.Join(vpath, "images"), os.ModeDir|os.ModePerm)
+	os.Mkdir(filepath.Join(vpath, "ln_images"), os.ModeDir|os.ModePerm)
 
 	chapterCount, _ := strconv.Atoi(chapters)
 	chapterList := []string{}
@@ -73,9 +74,10 @@ func New(c *cli.Context) error {
 }
 
 const ConfigBody = `Title = "%s"
-Cover = "cover.png"
+Cover = "images/cover.png"
 Description = "%s"
 ImageFolder = "images"
+LNImageFolder = "ln_images"
 Sections = [
     %s
 ]`
