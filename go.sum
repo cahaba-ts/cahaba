@@ -5,6 +5,8 @@ github.com/adrg/frontmatter v0.2.0 h1:/DgnNe82o03riBd1S+ZDjd43wAmC6W35q67NHeLkPd
 github.com/adrg/frontmatter v0.2.0/go.mod h1:93rQCj3z3ZlwyxxpQioRKC1wDLto4aXHrbqIsnH9wmE=
 github.com/cahaba-ts/epub v1.0.0 h1:dXxg/4XsNiIxC2g1B+ebNR51eLSdDEq3mNAoYokSxk8=
 github.com/cahaba-ts/epub v1.0.0/go.mod h1:o63fbX+ns2bJWd+VgO50d9zUpMGe33gZ6kww3Aw67+g=
+github.com/cahaba-ts/epub v1.1.0 h1:xPfy2X7L36p0LZkjrki2MQXCBEj4YySieK5KeDR49NA=
+github.com/cahaba-ts/epub v1.1.0/go.mod h1:o63fbX+ns2bJWd+VgO50d9zUpMGe33gZ6kww3Aw67+g=
 github.com/chzyer/logex v1.1.10 h1:Swpa1K6QvQznwJRcfTfQJmTE72DqScAa40E+fbHEXEE=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e h1:fY5BOSpyZCqRo5OhCuC+XN+r/bBCmeuuJtjz+bCNIf8=

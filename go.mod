@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/BurntSushi/toml v1.1.0
 	github.com/adrg/frontmatter v0.2.0
-	github.com/cahaba-ts/epub v1.0.0
+	github.com/cahaba-ts/epub v1.1.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/urfave/cli v1.22.9
 )
