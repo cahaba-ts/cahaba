@@ -16,6 +16,7 @@ import (
 
 type BuildConfig struct {
 	Title         string   `toml:"Title" yaml:"title"`
+	Format        string   `toml:"Format" yaml:"format"`
 	Author        string   `toml:"Author" yaml:"author"`
 	Cover         string   `toml:"Cover" yaml:"cover"`
 	Description   string   `toml:"Description" yaml:"description"`
@@ -78,21 +79,34 @@ func Build(c *cli.Context) error {
 func buildBookEpub(vpath string, config BuildConfig) error {
 	output := configureEpub(vpath, config)
 	pastPrologue := false
+	var err error
 	for _, section := range config.Sections {
 		cfg, body := loadChapter(vpath, section)
 		if strings.HasPrefix(section, "chapter") {
 			pastPrologue = true
-			err := output.AddChapterMD(cfg.Title, body)
+			if cfg.Format == "md" {
+				err = output.AddChapterMD(cfg.Title, body)
+			} else {
+				err = output.AddChapterHTML(cfg.Title, []string{body})
+			}
 			if err != nil {
 				log.Fatal("Add Chapter: ", err)
 			}
 		} else if pastPrologue {
-			err := output.AddPostscriptMD(cfg.Title, body)
+			if cfg.Format == "md" {
+				err = output.AddPostscriptMD(cfg.Title, body)
+			} else {
+				err = output.AddPostscriptHTML(cfg.Title, []string{body})
+			}
 			if err != nil {
 				log.Fatal("Add Chapter: ", err)
 			}
 		} else {
-			err := output.AddIntroductionMD(cfg.Title, body)
+			if cfg.Format == "md" {
+				err = output.AddIntroductionMD(cfg.Title, body)
+			} else {
+				err = output.AddIntroductionHTML(cfg.Title, []string{body})
+			}
 			if err != nil {
 				log.Fatal("Add Chapter: ", err)
 			}
@@ -112,17 +126,48 @@ func loadConfig(vpath string) BuildConfig {
 }
 
 func loadChapter(vpath, chapterFile string) (BuildConfig, string) {
-	f, err := os.Open(filepath.Join(vpath, "text", chapterFile+".md"))
-	if err != nil {
-		log.Fatal("Open Chapter File: ", chapterFile, err)
+	var f *os.File
+	xhtml := false
+
+	mdPath := filepath.Join(vpath, "text", chapterFile+".md")
+	if _, err := os.Stat(mdPath); err == nil {
+		f, err = os.Open(mdPath)
+		if err != nil {
+			log.Fatal("Open Chapter File: ", chapterFile, err)
+		}
 	}
+
+	htmlPath := filepath.Join(vpath, "text", chapterFile+".html")
+	if _, err := os.Stat(htmlPath); f == nil && err == nil {
+		f, err = os.Open(htmlPath)
+		if err != nil {
+			log.Fatal("Open Chapter File: ", chapterFile, err)
+		}
+		xhtml = true
+	}
+
+	xhtmlPath := filepath.Join(vpath, "text", chapterFile+".html")
+	if _, err := os.Stat(xhtmlPath); f == nil && err == nil {
+		f, err = os.Open(xhtmlPath)
+		if err != nil {
+			log.Fatal("Open Chapter File: ", chapterFile, err)
+		}
+		xhtml = true
+	}
+
 	bc := BuildConfig{}
 	body, err := frontmatter.Parse(f, &bc)
 	if err != nil {
 		log.Fatal("Parse Chapter File: ", chapterFile, err)
 	}
-	return bc, string(body)
 
+	if xhtml {
+		bc.Format = "html"
+	} else {
+		bc.Format = "md"
+	}
+
+	return bc, string(body)
 }
 
 func configureEpub(vpath string, config BuildConfig) *epub.Book {
@@ -151,6 +196,22 @@ func configureShortcodes() {
 			if onlyLN {
 				return "", nil
 			}
+			img := fmt.Sprint(m["image"])
+			alt := fmt.Sprint(m["alt"])
+			imgPath, ok := b.LookupImage(img)
+			if !ok {
+				return "", errors.New("Missing Image: " + img)
+			}
+			return fmt.Sprintf(
+				`<img class="cahaba--normal-image" src="%s" alt="%s" />`,
+				imgPath,
+				alt,
+			), nil
+		},
+	)
+	epub.RegisterShortcode(
+		"alwaysimage",
+		func(b *epub.Book, s1 string, m map[string]any, s2 string) (string, error) {
 			img := fmt.Sprint(m["image"])
 			alt := fmt.Sprint(m["alt"])
 			imgPath, ok := b.LookupImage(img)
