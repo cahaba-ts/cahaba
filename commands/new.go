@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cahaba-ts/epub"
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli"
 )
@@ -42,6 +43,7 @@ func New(c *cli.Context) error {
 	os.Mkdir(tpath, os.ModeDir|os.ModePerm)
 	os.Mkdir(filepath.Join(vpath, "images"), os.ModeDir|os.ModePerm)
 	os.Mkdir(filepath.Join(vpath, "ln_images"), os.ModeDir|os.ModePerm)
+	os.Mkdir(filepath.Join(vpath, "assets"), os.ModeDir|os.ModePerm)
 
 	chapterCount, _ := strconv.Atoi(chapters)
 	chapterList := []string{}
@@ -69,15 +71,28 @@ func New(c *cli.Context) error {
 		)),
 		os.ModePerm,
 	)
+	data, _ := epub.RetrieveTemplate("default.css")
+	os.WriteFile(
+		filepath.Join(vpath, "volume.css"),
+		data,
+		os.ModePerm,
+	)
 
 	return nil
 }
 
 const ConfigBody = `Title = "%s"
 Cover = "images/cover.png"
+Author = "Unknown"
 Description = "%s"
 ImageFolder = "images"
 LNImageFolder = "ln_images"
+ReleaseDate = "2022-02-02"
+Header = """<header style="justify-content: space-between">
+<div class="even-page">_TITLE_ by _AUTHOR_</div>
+<div></div>
+<div class="odd-page"><i>Find me at example.com</i></div>
+</header>"""
 Sections = [
     %s
 ]`

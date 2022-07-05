@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,6 +19,7 @@ type BuildConfig struct {
 	Title         string   `toml:"Title" yaml:"title"`
 	Format        string   `toml:"Format" yaml:"format"`
 	Author        string   `toml:"Author" yaml:"author"`
+	Header        string   `toml:"Header" yaml:"header"`
 	Cover         string   `toml:"Cover" yaml:"cover"`
 	Description   string   `toml:"Description" yaml:"description"`
 	ReleaseDate   string   `toml:"ReleaseDate" yaml:"release_date"`
@@ -112,7 +114,31 @@ func buildBookEpub(vpath string, config BuildConfig) error {
 			}
 		}
 	}
-	return output.Write(config.Title + ".epub")
+	filename := config.Title + ".epub"
+	err = output.Write(filename)
+	if err != nil {
+		log.Fatal("Write: ", err)
+	}
+	if err != nil {
+		return err
+	}
+
+	pdfname := strings.TrimSuffix(filename, "epub") + "pdf"
+	fmt.Println("Building: ", pdfname)
+	cmd := exec.Command(
+		"ebook-convert", filename, pdfname,
+		"--paper-size", "a5",
+		"--pdf-page-margin-left", "40",
+		"--pdf-page-margin-right", "40",
+		"--pdf-page-margin-bottom", "40",
+		"--pdf-page-margin-top", "40",
+		"--pdf-page-numbers",
+		"--pdf-default-font-size", "12",
+		"--pdf-header-template", config.Header,
+	)
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+
 }
 
 func loadConfig(vpath string) BuildConfig {
@@ -170,6 +196,25 @@ func loadChapter(vpath, chapterFile string) (BuildConfig, string) {
 	return bc, string(body)
 }
 
+var backupMediaTypes = map[string]string{
+	".ttf":   "application/x-font-ttf",
+	".otf":   "application/x-font-otf",
+	".woff":  "application/x-font-woff",
+	".woff2": "application/x-font-woff2",
+	".eot":   "application/vnd.ms-fontobject",
+	".mp4":   "video/mp4",
+	".mp3":   "audio/mpeg",
+	".ogg":   "audio/ogg",
+	".webm":  "video/webm",
+	".mov":   "video/quicktime",
+	".avi":   "video/x-msvideo",
+	".mkv":   "video/x-matroska",
+	".m4v":   "video/x-m4v",
+	".m4a":   "audio/x-m4a",
+	".opus":  "audio/ogg",
+	".flac":  "audio/flac",
+}
+
 func configureEpub(vpath string, config BuildConfig) *epub.Book {
 	book := epub.NewBook(config.Title)
 	if config.Author != "" {
@@ -180,11 +225,26 @@ func configureEpub(vpath string, config BuildConfig) *epub.Book {
 	if err := book.SetCover(filepath.Join(vpath, config.Cover)); err != nil {
 		log.Fatal("Set Cover: ", err)
 	}
+	aspath := filepath.Join(vpath, "assets")
+	assets, _ := os.ReadDir(aspath)
+	for _, asset := range assets {
+		name := asset.Name()
+
+		if mediaType, ok := epub.ImageMediaTypes[filepath.Ext(name)]; ok {
+			book.AddAsset(filepath.Join(aspath, name), name, mediaType)
+		} else {
+			mediaType := backupMediaTypes[filepath.Ext(name)]
+			if mediaType == "" {
+				mediaType = "application/octet-stream"
+			}
+			book.AddAsset(filepath.Join(aspath, name), name, mediaType)
+		}
+	}
 
 	book.SetReleaseDate(config.ReleaseDate)
 	book.SetPublisher("Cahaba Translations")
-	if _, err := os.Stat("main.css"); err == nil {
-		book.SetCSS("main.css")
+	if _, err := os.Stat(filepath.Join(vpath, "volume.css")); err == nil {
+		book.SetCSS(filepath.Join(vpath, "volume.css"))
 	}
 	return book
 }
@@ -277,6 +337,18 @@ func configureShortcodes() {
 				imgPath,
 				alt,
 			), nil
+		},
+	)
+	epub.RegisterShortcode(
+		"small_spacer",
+		func(b *epub.Book, s1 string, m map[string]any, s2 string) (string, error) {
+			return `<div class="spacer"></div>`, nil
+		},
+	)
+	epub.RegisterShortcode(
+		"big_spacer",
+		func(b *epub.Book, s1 string, m map[string]any, s2 string) (string, error) {
+			return `<div class="bigspacer"><img class="cahaba--separator" src="../assets/separator.png" /></div>`, nil
 		},
 	)
 }
